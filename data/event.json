@@ -1,0 +1,38 @@
+[
+  {
+    "id": 1,
+    "title": "Play football⚽",
+    "description": "Play football with me. Make some time to go outside and play!",
+    "duration": 60,
+    "active": true,
+    "bookings": 12,
+    "created": "2024-11-10"
+  },
+  {
+    "id": 2,
+    "title": "Coffee Chat ☕",
+    "description": "Let's grab a coffee and discuss your project ideas. Perfect for networking and collaboration.",
+    "duration": 30,
+    "active": true,
+    "bookings": 8,
+    "created": "2024-11-08"
+  },
+  {
+    "id": 3,
+    "title": "Design Review 🎨",
+    "description": "Get feedback on your design work. I'll review your portfolio and provide constructive feedback.",
+    "duration": 45,
+    "active": false,
+    "bookings": 3,
+    "created": "2024-11-05"
+  },
+  {
+    "id": 4,
+    "title": "Coding Session 💻",
+    "description": "Pair programming session to work on your coding projects together.",
+    "duration": 90,
+    "active": true,
+    "bookings": 15,
+    "created": "2024-11-12"
+  }
+]

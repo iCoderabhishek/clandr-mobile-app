@@ -1,0 +1,64 @@
+{
+  "weeklySchedule": {
+    "monday": {
+      "09:00": "available",
+      "10:00": "booked",
+      "11:00": "available",
+      "14:00": "booked",
+      "15:00": "available",
+      "16:00": "blocked"
+    },
+    "tuesday": {
+      "09:00": "booked",
+      "10:00": "available",
+      "11:00": "available",
+      "14:00": "available",
+      "15:00": "booked",
+      "16:00": "available"
+    },
+    "wednesday": {
+      "09:00": "available",
+      "10:00": "available",
+      "11:00": "booked",
+      "14:00": "available",
+      "15:00": "available",
+      "16:00": "blocked"
+    },
+    "thursday": {
+      "09:00": "booked",
+      "10:00": "booked",
+      "11:00": "available",
+      "14:00": "blocked",
+      "15:00": "available",
+      "16:00": "available"
+    },
+    "friday": {
+      "09:00": "available",
+      "10:00": "available",
+      "11:00": "available",
+      "14:00": "booked",
+      "15:00": "booked",
+      "16:00": "available"
+    },
+    "saturday": {
+      "10:00": "available",
+      "11:00": "available",
+      "14:00": "available",
+      "15:00": "blocked",
+      "16:00": "blocked"
+    },
+    "sunday": {
+      "10:00": "blocked",
+      "11:00": "blocked",
+      "14:00": "available",
+      "15:00": "available",
+      "16:00": "available"
+    }
+  },
+  "stats": {
+    "totalSlots": 42,
+    "availableSlots": 18,
+    "bookedSlots": 15,
+    "blockedSlots": 9
+  }
+}
