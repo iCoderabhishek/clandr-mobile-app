@@ -1,4 +1,5 @@
 import ScheduleChart from "@/components/ScheduleChart";
+import ScheduleEditor from "@/components/ScheduleEditor";
 import { useApiClient } from "@/lib/api";
 import { useSaveSchedule, useSchedule } from "@/lib/queries";
 import { useAuth } from "@clerk/clerk-expo";
@@ -17,7 +18,16 @@ export default function MyScheduleScreen() {
   const { isSignedIn } = useAuth();
   useApiClient(); // Initialize API client with auth
 
-  const { data: scheduleData, isLoading, error } = useSchedule();
+  const [isEditorVisible, setEditorVisible] = React.useState(false);
+  const [editingSchedule, setEditingSchedule] = React.useState({});
+
+  const {
+    data: scheduleData,
+    isLoading,
+    error,
+    refetch: refetchSchedule,
+  } = useSchedule();
+
   const saveScheduleMutation = useSaveSchedule();
 
   // Show loading state
@@ -83,8 +93,8 @@ export default function MyScheduleScreen() {
           text: "Edit",
           style: "default",
           onPress: () => {
-            // TODO: Implement slot editing
-            console.log("Edit slot", { day, time, status });
+            setEditingSchedule(schedule);
+            setEditorVisible(true);
           },
         },
       ]
@@ -220,6 +230,17 @@ export default function MyScheduleScreen() {
             ))}
           </View>
         </View>
+
+        {/* Schedule Editor */}
+
+        <ScheduleEditor
+          visible={isEditorVisible}
+          schedule={editingSchedule}
+          onClose={() => {
+            setEditorVisible(false);
+            refetchSchedule(); // reload latest schedule from backend
+          }}
+        />
 
         {/* Bottom Spacing */}
         <View className="h-20" />

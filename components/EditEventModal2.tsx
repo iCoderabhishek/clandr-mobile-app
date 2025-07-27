@@ -37,7 +37,7 @@ export default function EditEventModal2({
     if (event) {
       setTitle(event.title);
       setDescription(event.description);
-      setDuration(event.duration.toString());
+      setDuration(event.duration?.toString());
       setActive(event.active);
     }
   }, [event]);

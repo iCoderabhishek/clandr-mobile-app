@@ -1,7 +1,7 @@
-import axios, { AxiosInstance, AxiosResponse } from 'axios';
 import { useAuth } from '@clerk/clerk-expo';
-import { Platform } from 'react-native';
+import axios, { AxiosInstance } from 'axios';
 import React from 'react';
+import { Platform } from 'react-native';
 
 // API Configuration
 const getApiUrl = () => {
@@ -130,7 +130,7 @@ class ApiClient {
     return response.data;
   }
 
-  async createEvent(event: Omit<Event, 'id' | 'created' | 'userId' | 'bookings'>): Promise<Event> {
+  async createEvent(event: Omit<Event, 'id' | 'created' | 'userId' | 'bookings'>){
     const response = await this.client.post('/api/events', event);
     return response.data;
   }

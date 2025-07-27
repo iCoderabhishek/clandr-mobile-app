@@ -1,3 +1,4 @@
+import CreateEventModal from "@/components/CreateEventModal";
 import EditEventModal from "@/components/EditEventModal";
 import { useApiClient } from "@/lib/api";
 import { useDeleteEvent, useEvents, useUpdateEvent } from "@/lib/queries";
@@ -34,6 +35,7 @@ interface Event {
 
 export default function MyEventsScreen() {
   const { isSignedIn } = useAuth();
+
   useApiClient(); // Initialize API client with auth
 
   const { data: events = [], isLoading, error } = useEvents();
@@ -42,8 +44,9 @@ export default function MyEventsScreen() {
 
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [createModalVisible, setCreateModalVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedDay, setSelectedDay] = useState("Today");
+  const [selectedFilter, setSelectedFilter] = useState("all");
 
   // Show loading state
   if (isLoading) {
@@ -83,9 +86,16 @@ export default function MyEventsScreen() {
     );
   }
 
-  const activeEvents = events.filter((event) => event.active);
-  const todayEvents = activeEvents.slice(0, 2); // Mock today's events
-  const tomorrowEvents = activeEvents.slice(2, 3); // Mock tomorrow's events
+  // Filter events based on search and filter
+  const filteredEvents = events.filter((event) => {
+    const matchesSearch =
+      event.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      event.description?.toLowerCase().includes(searchQuery.toLowerCase());
+
+    if (selectedFilter === "active") return event.active && matchesSearch;
+    if (selectedFilter === "inactive") return !event.active && matchesSearch;
+    return matchesSearch;
+  });
 
   const getCurrentDate = () => {
     const today = new Date();
@@ -209,8 +219,11 @@ export default function MyEventsScreen() {
           <Text className="text-gray-600 text-base mb-2">
             {getCurrentDate()}
           </Text>
-          <Text className="text-3xl font-bold text-gray-800 mb-6">
-            You Have {todayEvents.length} {"\n"}Meetings Today
+          <Text className="text-3xl font-bold text-gray-800 mb-4">
+            My Events
+          </Text>
+          <Text className="text-gray-600 mb-6">
+            Manage your bookable events and availability
           </Text>
 
           {/* Search Bar */}
@@ -225,60 +238,68 @@ export default function MyEventsScreen() {
             />
           </View>
 
-          {/* Day Tabs */}
+          {/* Filter Tabs */}
           <View className="flex-row mb-4">
             {[
-              { label: "Today", count: todayEvents.length },
-              { label: "Tomorrow", count: tomorrowEvents.length },
-              { label: "26 Aug", count: 6 },
-            ].map((day, index) => (
+              { label: "All", value: "all", count: events.length },
+              {
+                label: "Active",
+                value: "active",
+                count: events.filter((e) => e.active).length,
+              },
+              {
+                label: "Inactive",
+                value: "inactive",
+                count: events.filter((e) => !e.active).length,
+              },
+            ].map((filter, index) => (
               <TouchableOpacity
                 key={index}
-                onPress={() => setSelectedDay(day.label)}
+                onPress={() => setSelectedFilter(filter.value)}
                 className={`mr-4 px-4 py-2 rounded-full ${
-                  selectedDay === day.label
+                  selectedFilter === filter.value
                     ? "bg-gray-800"
                     : "bg-white shadow-sm"
                 }`}
               >
                 <Text
                   className={`font-semibold ${
-                    selectedDay === day.label ? "text-white" : "text-gray-600"
+                    selectedFilter === filter.value
+                      ? "text-white"
+                      : "text-gray-600"
                   }`}
                 >
-                  {day.label} ({day.count})
+                  {filter.label} ({filter.count})
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
-
-          {/* Motivational Text */}
-          <Text className="text-gray-500 text-sm mb-6 leading-5">
-            It's a good day to start any event, you can make important decisions
-            or plan them.
-          </Text>
         </View>
 
         {/* Events List */}
         <View className="px-4">
-          {selectedDay === "Today" &&
-            todayEvents.map((event, index) => (
+          {filteredEvents.length > 0 ? (
+            filteredEvents.map((event, index) => (
               <EventCard key={event.id} event={event} index={index} />
-            ))}
-
-          {selectedDay === "Tomorrow" &&
-            tomorrowEvents.map((event, index) => (
-              <EventCard key={event.id} event={event} index={index + 2} />
-            ))}
-
-          {selectedDay === "26 Aug" && (
+            ))
+          ) : (
             <View className="bg-white rounded-3xl p-8 items-center shadow-lg">
               <Text className="text-gray-500 text-lg mb-2">
-                No events scheduled
+                {searchQuery ? "No events found" : "No events yet"}
               </Text>
               <Text className="text-gray-400 text-center">
-                Create your first event for this date
+                {searchQuery
+                  ? "Try adjusting your search or filters"
+                  : "Create your first event to get started"}
               </Text>
+              {!searchQuery && (
+                <TouchableOpacity
+                  onPress={() => setCreateModalVisible(true)}
+                  className="bg-blue-500 rounded-2xl px-6 py-3 mt-4"
+                >
+                  <Text className="text-white font-semibold">Create Event</Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
         </View>
@@ -289,10 +310,19 @@ export default function MyEventsScreen() {
 
       {/* Floating Action Button */}
       <View className="absolute bottom-6 right-6">
-        <TouchableOpacity className="w-14 h-14 bg-gray-800 rounded-full items-center justify-center shadow-lg">
+        <TouchableOpacity
+          onPress={() => setCreateModalVisible(true)}
+          className="w-14 h-14 bg-gray-800 rounded-full items-center justify-center shadow-lg"
+        >
           <Plus size={24} color="white" />
         </TouchableOpacity>
       </View>
+
+      {/* Create Modal */}
+      <CreateEventModal
+        visible={createModalVisible}
+        onClose={() => setCreateModalVisible(false)}
+      />
 
       {/* Edit Modal */}
       <EditEventModal

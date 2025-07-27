@@ -12,16 +12,26 @@ import {
 } from "react-native";
 
 export default function AuthScreen() {
-  const { isSignedIn } = useAuth();
+  const { isSignedIn, isLoaded } = useAuth();
   const { startOAuthFlow } = useOAuth({ strategy: "oauth_google" });
   const router = useRouter();
 
+  if (!isLoaded) {
+    return (
+      <SafeAreaView className="flex-1 bg-blue-500 items-center justify-center">
+        <Text className="text-white text-lg">Loading auth state...</Text>
+      </SafeAreaView>
+    );
+  }
+
   // Redirect if already signed in
   React.useEffect(() => {
+    if (!isLoaded) return; // Wait for Clerk to load
+
     if (isSignedIn) {
       router.replace("/(tabs)");
     }
-  }, [isSignedIn, router]);
+  }, [isSignedIn, isLoaded, router]);
 
   const handleGoogleAuth = async () => {
     try {
