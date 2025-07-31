@@ -78,10 +78,10 @@ export default function AuthScreen() {
                 style={{ width: 60, height: 60 }}
               />
             </View>
-            <Text className="text-white text-4xl font-extrabold mb-2 tracking-tight">
+            <Text className="text-white text-4xl font-extrabold mb-2 tracking-tight shadow-xl">
               Clandr
             </Text>
-            <Text className="text-blue-100 text-center text-md leading-relaxed">
+            <Text className="text-blue-100 text-center text-lg leading-relaxed">
               Schedule smarter, connect better
             </Text>
           </View>
@@ -97,7 +97,7 @@ export default function AuthScreen() {
           {/* Google Sign In */}
           <TouchableOpacity
             onPress={handleGoogleAuth}
-            className="bg-white/90 rounded-2xl py-4 px-6 flex-row items-center justify-center shadow-md mb-6"
+            className="bg-white/90 rounded-2xl py-4 px-6 flex-row items-center justify-center shadow-lg mb-6"
           >
             <View className="w-10 h-10 rounded-full mr-3 items-center justify-center overflow-hidden">
               <Image
@@ -105,7 +105,7 @@ export default function AuthScreen() {
                 style={{ width: 26, height: 26, resizeMode: "contain" }}
               />
             </View>
-            <Text className="text-black font-medium text-lg">
+            <Text className="text-black font-medium text-lg shadow-md">
               Continue with Google
             </Text>
           </TouchableOpacity>

@@ -31,25 +31,28 @@ console.log('Final API URL:', API_URL);
 // Types
 export interface Event {
   id: number;
-  title: string;
+  name: string;
   description: string;
-  duration: number;
-  active: boolean;
+  durationInMinutes: number;
+  isActive: boolean;
   bookings: number;
-  created: string;
+  createdAt: string;
   userId: string;
 }
 
 export interface Schedule {
   id: string;
-  userId: string;
-  weeklySchedule: Record<string, Record<string, string>>;
-  stats: {
-    totalSlots: number;
-    availableSlots: number;
-    bookedSlots: number;
-    blockedSlots: number;
-  };
+  clerkUserId: string;
+  timezone: string;
+  availabilities: Availability[];
+}
+
+export interface Availability {
+  id?: string;
+  scheduleId?: string;
+  dayOfWeek: 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
+  startTime: string; // Format: "HH:MM"
+  endTime: string;   // Format: "HH:MM"
 }
 
 export interface Meeting {
@@ -155,7 +158,7 @@ class ApiClient {
     return response.data;
   }
 
-  async saveSchedule(schedule: Omit<Schedule, 'id' | 'userId'>): Promise<Schedule> {
+  async saveSchedule(schedule: { timezone: string; availabilities: Omit<Availability, 'id' | 'scheduleId'>[] }): Promise<Schedule> {
     const response = await this.client.post('/api/schedule', schedule);
     return response.data;
   }

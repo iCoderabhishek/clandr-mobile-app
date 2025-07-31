@@ -1,11 +1,13 @@
+import { Availability } from "@/lib/api";
 import { useSaveSchedule } from "@/lib/queries";
-import { Check, X } from "lucide-react-native";
-import React, { useState } from "react";
+import { Plus, X } from "lucide-react-native";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   Modal,
   ScrollView,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -16,115 +18,166 @@ interface ScheduleEditorProps {
   onClose: () => void;
 }
 
+interface TimeSlot {
+  startTime: string;
+  endTime: string;
+}
+
+interface DaySchedule {
+  [key: string]: TimeSlot[];
+}
+
+// Common timezone options
+const TIMEZONE_OPTIONS = [
+  { label: "Pacific Time (GMT-8:00)", value: "America/Los_Angeles" },
+  { label: "Mountain Time (GMT-7:00)", value: "America/Denver" },
+  { label: "Central Time (GMT-6:00)", value: "America/Chicago" },
+  { label: "Eastern Time (GMT-5:00)", value: "America/New_York" },
+  { label: "UTC (GMT+0:00)", value: "UTC" },
+  { label: "London (GMT+0:00)", value: "Europe/London" },
+  { label: "Paris (GMT+1:00)", value: "Europe/Paris" },
+  { label: "Tokyo (GMT+9:00)", value: "Asia/Tokyo" },
+  { label: "Sydney (GMT+10:00)", value: "Australia/Sydney" },
+  { label: "Mumbai (GMT+5:30)", value: "Asia/Kolkata" },
+  { label: "Dubai (GMT+4:00)", value: "Asia/Dubai" },
+];
+
 export default function ScheduleEditor({
   visible,
   schedule,
   onClose,
 }: ScheduleEditorProps) {
   const saveScheduleMutation = useSaveSchedule();
-  const [editedSchedule, setEditedSchedule] = useState(schedule || {});
+
+  // Get user's current timezone as default
+  const getUserTimezone = () => {
+    try {
+      return getTimezone();
+    } catch {
+      return "America/New_York"; // fallback
+    }
+  };
+
+  const [timezone, setTimezone] = useState(
+    schedule?.timezone || getUserTimezone()
+  );
+  const [daySchedules, setDaySchedules] = useState<DaySchedule>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [showTimezoneDropdown, setShowTimezoneDropdown] = useState(false);
 
   const days = [
-    { key: "monday", label: "Monday" },
-    { key: "tuesday", label: "Tuesday" },
-    { key: "wednesday", label: "Wednesday" },
-    { key: "thursday", label: "Thursday" },
-    { key: "friday", label: "Friday" },
-    { key: "saturday", label: "Saturday" },
-    { key: "sunday", label: "Sunday" },
+    { key: "monday", label: "Mon" },
+    { key: "tuesday", label: "Tue" },
+    { key: "wednesday", label: "Wed" },
+    { key: "thursday", label: "Thu" },
+    { key: "friday", label: "Fri" },
+    { key: "saturday", label: "Sat" },
+    { key: "sunday", label: "Sun" },
   ];
 
-  const times = [
-    "09:00",
-    "10:00",
-    "11:00",
-    "12:00",
-    "13:00",
-    "14:00",
-    "15:00",
-    "16:00",
-    "17:00",
-    "18:00",
-  ];
+  // Convert availabilities to day schedules format
+  useEffect(() => {
+    if (schedule?.availabilities) {
+      const newDaySchedules: DaySchedule = {};
 
-  const statusOptions = [
-    { value: "available", label: "Available", color: "bg-green-500" },
-    { value: "blocked", label: "Blocked", color: "bg-gray-400" },
-    { value: "empty", label: "Empty", color: "bg-gray-200" },
-  ];
+      schedule.availabilities.forEach((availability: Availability) => {
+        if (!newDaySchedules[availability.dayOfWeek]) {
+          newDaySchedules[availability.dayOfWeek] = [];
+        }
+        newDaySchedules[availability.dayOfWeek].push({
+          startTime: availability.startTime,
+          endTime: availability.endTime,
+        });
+      });
 
-  const toggleSlot = (day: string, time: string) => {
-    const currentStatus = editedSchedule[day]?.[time] || "empty";
-    let nextStatus = "available";
+      setDaySchedules(newDaySchedules);
+    }
+  }, [schedule]);
 
-    if (currentStatus === "available") nextStatus = "blocked";
-    else if (currentStatus === "blocked") nextStatus = "empty";
-    else nextStatus = "available";
+  // Update timezone when schedule changes
+  useEffect(() => {
+    if (schedule?.timezone) {
+      setTimezone(schedule.timezone);
+    }
+  }, [schedule]);
 
-    setEditedSchedule((prev: any) => ({
+  const addTimeSlot = (dayKey: string) => {
+    setDaySchedules((prev) => ({
       ...prev,
-      [day]: {
-        ...prev[day],
-        [time]: nextStatus === "empty" ? undefined : nextStatus,
-      },
+      [dayKey]: [
+        ...(prev[dayKey] || []),
+        { startTime: "09:00", endTime: "17:00" },
+      ],
     }));
   };
 
-  const getSlotColor = (status: string) => {
-    switch (status) {
-      case "available":
-        return "bg-green-500";
-      case "blocked":
-        return "bg-gray-400";
-      case "booked":
-        return "bg-blue-500";
-      default:
-        return "bg-gray-200";
-    }
+  const removeTimeSlot = (dayKey: string, index: number) => {
+    setDaySchedules((prev) => ({
+      ...prev,
+      [dayKey]: prev[dayKey]?.filter((_, i) => i !== index) || [],
+    }));
   };
 
-  const getSlotTextColor = (status: string) => {
-    switch (status) {
-      case "available":
-      case "blocked":
-      case "booked":
-        return "text-white";
-      default:
-        return "text-gray-500";
-    }
+  const updateTimeSlot = (
+    dayKey: string,
+    index: number,
+    field: "startTime" | "endTime",
+    value: string
+  ) => {
+    setDaySchedules((prev) => ({
+      ...prev,
+      [dayKey]:
+        prev[dayKey]?.map((slot, i) =>
+          i === index ? { ...slot, [field]: value } : slot
+        ) || [],
+    }));
+  };
+
+  const validateTimeFormat = (time: string): boolean => {
+    const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+    return timeRegex.test(time);
+  };
+
+  const convertToAvailabilities = (): Omit<
+    Availability,
+    "id" | "scheduleId"
+  >[] => {
+    const availabilities: Omit<Availability, "id" | "scheduleId">[] = [];
+
+    Object.entries(daySchedules).forEach(([dayOfWeek, timeSlots]) => {
+      timeSlots.forEach((slot) => {
+        if (
+          validateTimeFormat(slot.startTime) &&
+          validateTimeFormat(slot.endTime)
+        ) {
+          const startFloat = parseFloat(slot.startTime.replace(":", "."));
+          const endFloat = parseFloat(slot.endTime.replace(":", "."));
+
+          if (startFloat < endFloat) {
+            availabilities.push({
+              dayOfWeek: dayOfWeek as any,
+              startTime: slot.startTime,
+              endTime: slot.endTime,
+            });
+          }
+        }
+      });
+    });
+
+    return availabilities;
   };
 
   const handleSave = async () => {
     setIsLoading(true);
 
-    // Calculate stats
-    let totalSlots = 0;
-    let availableSlots = 0;
-    let bookedSlots = 0;
-    let blockedSlots = 0;
-
-    Object.values(editedSchedule).forEach((daySchedule: any) => {
-      Object.values(daySchedule || {}).forEach((status: any) => {
-        totalSlots++;
-        if (status === "available") availableSlots++;
-        else if (status === "booked") bookedSlots++;
-        else if (status === "blocked") blockedSlots++;
-      });
-    });
-
-    const scheduleData = {
-      weeklySchedule: editedSchedule,
-      stats: {
-        totalSlots,
-        availableSlots,
-        bookedSlots,
-        blockedSlots,
-      },
-    };
-
     try {
-      await saveScheduleMutation.mutateAsync(scheduleData);
+      const availabilities = convertToAvailabilities();
+
+      await saveScheduleMutation.mutateAsync({
+        timezone,
+        availabilities,
+      });
+
       onClose();
       Alert.alert("Success", "Schedule updated successfully!");
     } catch (error) {
@@ -136,8 +189,30 @@ export default function ScheduleEditor({
   };
 
   const handleClose = () => {
-    setEditedSchedule(schedule || {});
+    // Reset to original values
+    setTimezone(schedule?.timezone || getUserTimezone());
+    if (schedule?.availabilities) {
+      const newDaySchedules: DaySchedule = {};
+      schedule.availabilities.forEach((availability: Availability) => {
+        if (!newDaySchedules[availability.dayOfWeek]) {
+          newDaySchedules[availability.dayOfWeek] = [];
+        }
+        newDaySchedules[availability.dayOfWeek].push({
+          startTime: availability.startTime,
+          endTime: availability.endTime,
+        });
+      });
+      setDaySchedules(newDaySchedules);
+    } else {
+      setDaySchedules({});
+    }
+    setShowTimezoneDropdown(false);
     onClose();
+  };
+
+  const getTimezoneLabel = (value: string) => {
+    const option = TIMEZONE_OPTIONS.find((opt) => opt.value === value);
+    return option?.label || value;
   };
 
   return (
@@ -148,109 +223,139 @@ export default function ScheduleEditor({
     >
       <View className="flex-1 bg-gray-50">
         {/* Header */}
-        <View className="bg-white pt-12 pb-4 px-4 shadow-sm">
+        <View className="bg-white pt-12 pb-4 px-6 shadow-sm">
           <View className="flex-row items-center justify-between">
-            <Text className="text-xl font-bold text-gray-800">
-              Edit Schedule
-            </Text>
-            <View className="flex-row">
-              <TouchableOpacity
-                onPress={handleClose}
-                disabled={isLoading}
-                className="w-8 h-8 rounded-full bg-gray-100 items-center justify-center mr-3"
-              >
-                <X size={20} color="#6B7280" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={handleSave}
-                disabled={isLoading || saveScheduleMutation.isPending}
-                className={`w-8 h-8 rounded-full items-center justify-center ${
-                  isLoading || saveScheduleMutation.isPending
-                    ? "bg-gray-300"
-                    : "bg-blue-500"
-                }`}
-              >
-                <Check size={20} color="white" />
-              </TouchableOpacity>
-            </View>
+            <Text className="text-xl font-bold text-gray-800">Schedule</Text>
+            <TouchableOpacity
+              onPress={handleClose}
+              disabled={isLoading}
+              className="w-8 h-8 rounded-full bg-gray-100 items-center justify-center"
+            >
+              <X size={20} color="#6B7280" />
+            </TouchableOpacity>
           </View>
         </View>
 
-        <ScrollView className="flex-1 p-4">
-          {/* Instructions */}
-          <View className="bg-white rounded-3xl shadow-lg p-6 mb-6">
-            <Text className="text-lg font-bold text-gray-800 mb-3">
-              How to Edit
+        <ScrollView className="flex-1 p-6" showsVerticalScrollIndicator={false}>
+          {/* Timezone Section */}
+          <View className="mb-6">
+            <Text className="text-base font-semibold text-gray-800 mb-3">
+              Timezone
             </Text>
-            <Text className="text-gray-600 mb-4">
-              Tap on time slots to cycle through:
-            </Text>
-            <View className="space-y-2">
-              {statusOptions.map((status) => (
-                <View key={status.value} className="flex-row items-center">
-                  <View
-                    className={`w-4 h-4 rounded-full ${status.color} mr-3`}
-                  />
-                  <Text className="text-gray-700">{status.label}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
+            <TouchableOpacity
+              onPress={() => setShowTimezoneDropdown(!showTimezoneDropdown)}
+              className="bg-white rounded-xl p-4 shadow-sm border border-gray-200"
+            >
+              <Text className="text-gray-800 text-base">
+                {getTimezoneLabel(timezone)}
+              </Text>
+            </TouchableOpacity>
 
-          {/* Schedule Grid */}
-          <View className="bg-white rounded-3xl shadow-lg p-6">
-            <Text className="text-lg font-bold text-gray-800 mb-4">
-              Weekly Schedule
-            </Text>
-
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View>
-                {/* Time Header */}
-                <View className="flex-row mb-3">
-                  <View className="w-20" />
-                  {times.map((time) => (
-                    <View key={time} className="w-16 items-center">
-                      <Text className="text-gray-500 text-xs font-medium">
-                        {time}
+            {showTimezoneDropdown && (
+              <View className="bg-white rounded-xl mt-2 shadow-lg border border-gray-200 max-h-48">
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  {TIMEZONE_OPTIONS.map((option) => (
+                    <TouchableOpacity
+                      key={option.value}
+                      onPress={() => {
+                        setTimezone(option.value);
+                        setShowTimezoneDropdown(false);
+                      }}
+                      className={`p-4 border-b border-gray-100 ${
+                        timezone === option.value ? "bg-blue-50" : ""
+                      }`}
+                    >
+                      <Text
+                        className={`text-base ${
+                          timezone === option.value
+                            ? "text-blue-600 font-medium"
+                            : "text-gray-800"
+                        }`}
+                      >
+                        {option.label}
                       </Text>
-                    </View>
+                    </TouchableOpacity>
                   ))}
-                </View>
-
-                {/* Days and Slots */}
-                {days.map((day) => (
-                  <View key={day.key} className="flex-row items-center mb-2">
-                    <View className="w-20">
-                      <Text className="text-gray-600 text-sm font-semibold">
-                        {day.label}
-                      </Text>
-                    </View>
-                    {times.map((time) => {
-                      const status = editedSchedule[day.key]?.[time] || "empty";
-                      return (
-                        <TouchableOpacity
-                          key={`${day.key}-${time}`}
-                          onPress={() => toggleSlot(day.key, time)}
-                          disabled={status === "booked"}
-                          className={`w-14 h-8 rounded-xl mx-1 items-center justify-center ${getSlotColor(status)} shadow-sm ${
-                            status === "booked" ? "opacity-70" : ""
-                          }`}
-                        >
-                          <Text
-                            className={`text-xs font-medium ${getSlotTextColor(status)}`}
-                          >
-                            {status === "empty"
-                              ? ""
-                              : status.charAt(0).toUpperCase()}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                ))}
+                </ScrollView>
               </View>
-            </ScrollView>
+            )}
           </View>
+
+          {/* Days Schedule */}
+          {days.map((day) => (
+            <View key={day.key} className="mb-6">
+              <View className="flex-row items-center justify-between mb-3">
+                <Text className="text-base font-semibold text-gray-800">
+                  {day.label}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => addTimeSlot(day.key)}
+                  className="w-8 h-8 rounded-full bg-blue-50 items-center justify-center"
+                >
+                  <Plus size={16} color="#3B82F6" />
+                </TouchableOpacity>
+              </View>
+
+              {daySchedules[day.key]?.map((slot, index) => (
+                <View
+                  key={index}
+                  className="flex-row items-center mb-3 bg-white rounded-xl p-4 shadow-sm"
+                >
+                  <TextInput
+                    value={slot.startTime}
+                    onChangeText={(value) =>
+                      updateTimeSlot(day.key, index, "startTime", value)
+                    }
+                    placeholder="9:00"
+                    className="bg-gray-50 rounded-lg px-3 py-2 text-center text-base text-gray-800 w-20"
+                    keyboardType="numeric"
+                  />
+
+                  <Text className="mx-4 text-gray-500 text-lg">-</Text>
+
+                  <TextInput
+                    value={slot.endTime}
+                    onChangeText={(value) =>
+                      updateTimeSlot(day.key, index, "endTime", value)
+                    }
+                    placeholder="17:00"
+                    className="bg-gray-50 rounded-lg px-3 py-2 text-center text-base text-gray-800 w-20"
+                    keyboardType="numeric"
+                  />
+
+                  <TouchableOpacity
+                    onPress={() => removeTimeSlot(day.key, index)}
+                    className="ml-4 w-8 h-8 rounded-full bg-red-50 items-center justify-center"
+                  >
+                    <X size={16} color="#EF4444" />
+                  </TouchableOpacity>
+                </View>
+              )) || (
+                <View className="bg-gray-50 rounded-xl p-4 items-center">
+                  <Text className="text-gray-500 text-sm">
+                    No availability set
+                  </Text>
+                </View>
+              )}
+            </View>
+          ))}
+
+          {/* Save Button */}
+          <TouchableOpacity
+            onPress={handleSave}
+            disabled={isLoading || saveScheduleMutation.isPending}
+            className={`rounded-xl p-4 items-center mt-6 ${
+              isLoading || saveScheduleMutation.isPending
+                ? "bg-gray-300"
+                : "bg-blue-500"
+            }`}
+          >
+            <Text className="text-white text-base font-semibold">
+              {isLoading || saveScheduleMutation.isPending
+                ? "Saving..."
+                : "Save"}
+            </Text>
+          </TouchableOpacity>
 
           {/* Bottom Spacing */}
           <View className="h-20" />

@@ -52,23 +52,20 @@ export default function CreateEventModal({
       return;
     }
 
-    const payload = {
+    const eventData = {
       name: title.trim(),
       description: description.trim(),
       durationInMinutes: durationNum,
       isActive: active,
+      createdAt: new Date().toISOString(),
     };
-
-    console.log("Sending event payload:", payload);
 
     setIsLoading(true);
 
     try {
-      await createEventMutation.mutateAsync(payload);
-
+      await createEventMutation.mutateAsync(eventData);
       resetForm();
       onClose();
-      Alert.alert("Success", "Event created successfully!");
     } catch (error) {
       console.error("Create event error:", error);
       Alert.alert("Error", "Failed to create event. Please try again.");

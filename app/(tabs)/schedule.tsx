@@ -3,11 +3,10 @@ import ScheduleEditor from "@/components/ScheduleEditor";
 import { useApiClient } from "@/lib/api";
 import { useSaveSchedule, useSchedule } from "@/lib/queries";
 import { useAuth } from "@clerk/clerk-expo";
-import { Calendar, Clock, Users } from "lucide-react-native";
+import { Calendar, Clock } from "lucide-react-native";
 import React from "react";
 import {
   ActivityIndicator,
-  Alert,
   SafeAreaView,
   ScrollView,
   Text,
@@ -19,7 +18,7 @@ export default function MyScheduleScreen() {
   useApiClient(); // Initialize API client with auth
 
   const [isEditorVisible, setEditorVisible] = React.useState(false);
-  const [editingSchedule, setEditingSchedule] = React.useState({});
+  const [editingSchedule, setEditingSchedule] = React.useState<any>(null);
 
   const {
     data: scheduleData,
@@ -68,8 +67,52 @@ export default function MyScheduleScreen() {
     );
   }
 
-  const schedule = scheduleData?.weeklySchedule || {};
-  const stats = scheduleData?.stats || {
+  // Convert backend format to display format
+  const convertToWeeklySchedule = (availabilities: any[] = []) => {
+    const weeklySchedule: Record<string, Record<string, string>> = {};
+
+    availabilities.forEach((availability) => {
+      if (!weeklySchedule[availability.dayOfWeek]) {
+        weeklySchedule[availability.dayOfWeek] = {};
+      }
+
+      // Generate hourly slots between start and end time
+      const startHour = parseInt(availability.startTime.split(":")[0]);
+      const endHour = parseInt(availability.endTime.split(":")[0]);
+
+      for (let hour = startHour; hour < endHour; hour++) {
+        const timeSlot = `${hour.toString().padStart(2, "0")}:00`;
+        weeklySchedule[availability.dayOfWeek][timeSlot] = "available";
+      }
+    });
+
+    return weeklySchedule;
+  };
+
+  const schedule = convertToWeeklySchedule(scheduleData?.availabilities);
+
+  // Calculate stats from availabilities
+  const calculateStats = (availabilities: any[] = []) => {
+    let totalSlots = 0;
+    let availableSlots = 0;
+
+    availabilities.forEach((availability) => {
+      const startHour = parseInt(availability.startTime.split(":")[0]);
+      const endHour = parseInt(availability.endTime.split(":")[0]);
+      const slots = endHour - startHour;
+      totalSlots += slots;
+      availableSlots += slots;
+    });
+
+    return {
+      totalSlots,
+      availableSlots,
+      bookedSlots: 0, // Would need to be calculated from actual bookings
+      blockedSlots: 0,
+    };
+  };
+
+  const stats = calculateStats(scheduleData?.availabilities) || {
     totalSlots: 0,
     availableSlots: 0,
     bookedSlots: 0,
@@ -77,28 +120,8 @@ export default function MyScheduleScreen() {
   };
 
   const handleSlotPress = (day: string, time: string, status: string) => {
-    const statusMessages = {
-      booked: `${day.charAt(0).toUpperCase() + day.slice(1)} at ${time} is booked`,
-      available: `${day.charAt(0).toUpperCase() + day.slice(1)} at ${time} is available for booking`,
-      blocked: `${day.charAt(0).toUpperCase() + day.slice(1)} at ${time} is blocked`,
-      empty: `${day.charAt(0).toUpperCase() + day.slice(1)} at ${time} is not scheduled`,
-    };
-
-    Alert.alert(
-      "Time Slot",
-      statusMessages[status as keyof typeof statusMessages] || "Unknown status",
-      [
-        { text: "OK", style: "default" },
-        {
-          text: "Edit",
-          style: "default",
-          onPress: () => {
-            setEditingSchedule(schedule);
-            setEditorVisible(true);
-          },
-        },
-      ]
-    );
+    setEditingSchedule(scheduleData);
+    setEditorVisible(true);
   };
 
   return (
@@ -106,39 +129,29 @@ export default function MyScheduleScreen() {
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View className="pt-4 pb-6 px-4">
-          <Text className="text-3xl font-bold text-gray-800 mb-2">
+          <Text className="text-3xl font-bold text-gray-800 mb-2 mt-5">
             My Schedule
           </Text>
-          <Text className="text-gray-600">
+          <Text className="text-gray-600 text-xl">
             Manage your availability and bookings
           </Text>
         </View>
 
         {/* Stats Cards */}
-        <View className="px-4 mb-6">
-          <View className="flex-row space-x-3 mb-3">
-            <View className="bg-white rounded-3xl shadow-lg p-4 flex-1">
+        <View className="px-4 mb-6 gap-2">
+          <View className="flex-row space-x-3 mb-3 ">
+            <View className="bg-white rounded-3xl shadow-lg p-4 flex-2">
               <View className="flex-row items-center mb-2">
                 <View className="w-8 h-8 rounded-full bg-green-50 items-center justify-center mr-3">
                   <Calendar size={16} color="#10B981" />
                 </View>
-                <Text className="text-2xl font-bold text-green-600">
+                <Text className="text-2xl font-bold text-center text-green-600">
                   {stats.availableSlots}
                 </Text>
               </View>
-              <Text className="text-gray-600 text-sm">Available Slots</Text>
-            </View>
-
-            <View className="bg-white rounded-3xl shadow-lg p-4 flex-1">
-              <View className="flex-row items-center mb-2">
-                <View className="w-8 h-8 rounded-full bg-blue-50 items-center justify-center mr-3">
-                  <Users size={16} color="#3B82F6" />
-                </View>
-                <Text className="text-2xl font-bold text-blue-600">
-                  {stats.bookedSlots}
-                </Text>
-              </View>
-              <Text className="text-gray-600 text-sm">Booked</Text>
+              <Text className="text-gray-600 text-sm text-center">
+                Available Slots
+              </Text>
             </View>
           </View>
 
@@ -161,11 +174,17 @@ export default function MyScheduleScreen() {
 
         {/* Schedule Chart */}
         <View className="px-4 mb-6">
-          <ScheduleChart schedule={schedule} onSlotPress={handleSlotPress} />
+          <ScheduleChart
+            schedule={schedule}
+            onEditPress={() => {
+              setEditingSchedule(scheduleData);
+              setEditorVisible(true);
+            }}
+          />
         </View>
 
         {/* Recent Bookings */}
-        <View className="px-4 mb-6">
+        {/* <View className="px-4 mb-6">
           <View className="bg-white rounded-3xl shadow-lg p-6">
             <Text className="text-xl font-bold text-gray-800 mb-4">
               Recent Bookings
@@ -229,7 +248,7 @@ export default function MyScheduleScreen() {
               </View>
             ))}
           </View>
-        </View>
+        </View> */}
 
         {/* Schedule Editor */}
 

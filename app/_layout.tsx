@@ -7,7 +7,7 @@ import { Stack, useRouter, useSegments } from "expo-router";
 import { useEffect } from "react";
 import "../global.css";
 
-function RootLayoutNav() {
+function AuthRedirectLogic() {
   const { isSignedIn, isLoaded } = useAuth();
   const segments = useSegments();
   const router = useRouter();
@@ -18,29 +18,27 @@ function RootLayoutNav() {
     const inAuthGroup = segments[0] === "auth";
 
     if (isSignedIn && inAuthGroup) {
-      // Redirect away from auth screen if signed in
       router.replace("/(tabs)");
     } else if (!isSignedIn && !inAuthGroup) {
-      // Redirect to auth screen if not signed in
       router.replace("/auth");
     }
   }, [isSignedIn, isLoaded, segments, router]);
 
-  return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="auth" options={{ headerShown: false }} />
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-    </Stack>
-  );
+  return null;
 }
 
 export default function RootLayout() {
   useFrameworkReady();
+
   return (
     <AuthProvider>
       <QueryProvider>
         <Container>
-          <RootLayoutNav />
+          <AuthRedirectLogic />
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="auth" />
+            <Stack.Screen name="(tabs)" />
+          </Stack>
         </Container>
       </QueryProvider>
     </AuthProvider>

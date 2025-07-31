@@ -2,11 +2,12 @@ import { useApiClient } from "@/lib/api";
 import { useEvents } from "@/lib/queries";
 import { useAuth, useUser } from "@clerk/clerk-expo";
 import * as Clipboard from "expo-clipboard";
-import { Clock, Copy, User } from "lucide-react-native";
+import { Copy, Info } from "lucide-react-native";
 import React from "react";
 import {
   ActivityIndicator,
   Alert,
+  Image,
   SafeAreaView,
   ScrollView,
   Text,
@@ -14,62 +15,45 @@ import {
   View,
 } from "react-native";
 
-interface Event {
-  id: number;
-  title: string;
-  description: string;
-  duration: number;
-  active: boolean;
-  bookings: number;
-  created: string;
-  userId: string;
-}
-
 export default function PublicProfileScreen() {
-  const { isSignedIn } = useAuth();
+  const { isSignedIn, userId: clerkUserId } = useAuth();
   const { user } = useUser();
-  useApiClient(); // Initialize API client with auth
+  useApiClient();
 
   const { data: events = [], isLoading, error } = useEvents();
-  const activeEvents = events.filter((event) => event.active);
-
-  const publicUrl = `https://cal.example.com/${user?.username || user?.id || "user"}`;
+  const activeEvents = events.filter((event) => event.isActive);
+  const publicUrl = `https://clandr-web.vercel.app/book/${clerkUserId}`;
   const userName = user?.fullName || user?.firstName || "User";
-  const userBio =
-    "Software Developer & Football Enthusiast. Book a session with me to discuss projects, grab coffee, or play some football!";
 
-  // Show loading state
   if (isLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50 items-center justify-center">
+      <SafeAreaView className="flex-1 items-center justify-center bg-gray-50">
         <ActivityIndicator size="large" color="#3B82F6" />
         <Text className="text-gray-600 mt-4">Loading profile...</Text>
       </SafeAreaView>
     );
   }
 
-  // Show error state
   if (error) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50 items-center justify-center px-4">
+      <SafeAreaView className="flex-1 items-center justify-center bg-gray-50 px-4">
         <Text className="text-red-500 text-lg font-semibold mb-2">
           Error loading profile
         </Text>
-        <Text className="text-gray-600 text-center">
+        <Text className="text-center text-gray-600">
           Please check your connection and try again
         </Text>
       </SafeAreaView>
     );
   }
 
-  // Show auth required state
   if (!isSignedIn) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50 items-center justify-center px-4">
-        <Text className="text-gray-800 text-xl font-bold mb-2">
+      <SafeAreaView className="flex-1 items-center justify-center bg-gray-50 px-4">
+        <Text className="text-xl font-bold text-gray-800 mb-2">
           Sign in required
         </Text>
-        <Text className="text-gray-600 text-center">
+        <Text className="text-center text-gray-600">
           Please sign in to view your public profile
         </Text>
       </SafeAreaView>
@@ -81,10 +65,10 @@ export default function PublicProfileScreen() {
     Alert.alert("Copied!", "Public profile URL copied to clipboard");
   };
 
-  const handleSelectEvent = (event: Event) => {
+  const handleSelectEvent = (events: any) => {
     Alert.alert(
       "Book Event",
-      `You selected "${event.title}". This would normally open the booking flow for clients.`,
+      `You selected "${events.name}". This would normally open the booking flow for clients.`,
       [
         { text: "Cancel", style: "cancel" },
         { text: "Continue Booking", style: "default" },
@@ -94,190 +78,90 @@ export default function PublicProfileScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        {/* Preview Header */}
-        <View className="bg-blue-500 pt-4 pb-6 px-4">
-          <Text className="text-white text-center text-lg font-semibold">
-            This is how your public profile looks like
+      <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
+        {/* Header */}
+        <View className="bg-blue-400 px-4 py-3 flex-row items-center justify-center space-x-2 gap-2">
+          <Info size={20} color="white" />
+          <Text className="text-white text-base font-semibold shadow-lg">
+            People can see your profile like this
           </Text>
         </View>
 
-        {/* Profile Section */}
-        <View className="bg-white rounded-3xl shadow-lg p-6 mx-4 mt-6 mb-6">
-          {/* Avatar and Info */}
-          <View className="items-center mb-6">
-            <View className="w-24 h-24 bg-blue-500 rounded-full items-center justify-center mb-4 shadow-lg">
-              <User size={40} color="white" />
-            </View>
-            <Text className="text-2xl font-bold text-gray-800 mb-2">
-              {userName}
-            </Text>
-            <Text className="text-gray-600 text-center leading-6 mb-4">
-              {userBio}
-            </Text>
-
-            {/* Public URL */}
-            <View className="bg-gray-50 rounded-2xl p-4 w-full">
-              <View className="flex-row items-center justify-between">
-                <Text className="text-gray-600 flex-1 mr-3">{publicUrl}</Text>
-                <TouchableOpacity
-                  onPress={copyPublicUrl}
-                  className="w-8 h-8 rounded-full bg-blue-50 items-center justify-center"
-                >
-                  <Copy size={16} color="#3B82F6" />
-                </TouchableOpacity>
-              </View>
-            </View>
+        {/* Profile Card */}
+        <View className="bg-white rounded-3xl shadow-md p-6 mx-4 mt-20">
+          <View className="items-center mb-4">
+            <Image
+              source={{ uri: user?.imageUrl }}
+              className="w-24 h-24 rounded-full mb-3"
+            />
+            <Text className="text-2xl font-bold text-gray-800">{userName}</Text>
           </View>
 
-          {/* Quick Stats */}
-          <View className="flex-row justify-around pt-4 border-t border-gray-100">
+          <View className="bg-gray-100 rounded-xl px-4 py-3 flex-row items-center justify-between mb-4">
+            <Text className="text-gray-600 flex-1 mr-2" numberOfLines={1}>
+              {publicUrl}
+            </Text>
+            <TouchableOpacity
+              onPress={copyPublicUrl}
+              className="bg-blue-100 p-2 rounded-full"
+            >
+              <Copy size={16} color="#3B82F6" />
+            </TouchableOpacity>
+          </View>
+
+          <View className="flex-row justify-around pt-4 border-t border-gray-200">
+            <View className="items-center">
+              <Text className="text-xl font-bold text-blue-600">
+                {events.length}
+              </Text>
+              <Text className="text-sm text-gray-500">Events</Text>
+            </View>
             <View className="items-center">
               <Text className="text-xl font-bold text-blue-600">
                 {activeEvents.length}
               </Text>
-              <Text className="text-gray-500 text-sm">Events</Text>
-            </View>
-            <View className="items-center">
-              <Text className="text-xl font-bold text-green-600">
-                {events.reduce((sum, event) => sum + event.bookings, 0)}
-              </Text>
-              <Text className="text-gray-500 text-sm">Bookings</Text>
-            </View>
-            <View className="items-center">
-              <Text className="text-xl font-bold text-purple-600">4.9</Text>
-              <Text className="text-gray-500 text-sm">Rating</Text>
+              <Text className="text-sm text-gray-500">Active</Text>
             </View>
           </View>
         </View>
 
-        {/* Available Events */}
-        <View className="px-4 mb-6">
-          <Text className="text-xl font-bold text-gray-800 mb-4">
-            Available Events
-          </Text>
+        {/* Active Events */}
+        {activeEvents.length > 0 && (
+          <View className="mt-4 mx-4 mb-10">
+            <View className="flex-row gap-2 justify-start mb-3">
+              <Info size={20} color="black" />
+              <Text className="text-xl font-semibold text-gray-800">
+                Your Active Events
+              </Text>
+            </View>
 
-          {activeEvents.length > 0 ? (
-            activeEvents.map((event) => (
-              <View
-                key={event.id}
-                className="bg-white rounded-3xl shadow-lg p-6 mb-4"
-              >
-                {/* Event Header */}
-                <View className="flex-row items-start justify-between mb-4">
-                  <View className="flex-1">
-                    <Text className="text-xl font-bold text-gray-800 mb-2">
-                      {event.title}
-                    </Text>
-                    <View className="flex-row items-center mb-3">
-                      <Clock size={16} color="#6B7280" />
-                      <Text className="text-gray-600 ml-2">
-                        {event.duration} minutes
-                      </Text>
-                    </View>
-                  </View>
-                  <View className="bg-green-100 px-3 py-1 rounded-full">
-                    <Text className="text-green-600 text-sm font-medium">
-                      Available
-                    </Text>
-                  </View>
-                </View>
+            {activeEvents.map((event, index) => {
+              const bgColors = [
+                "bg-blue-50",
+                "bg-purple-50",
+                "bg-teal-50",
+                "bg-yellow-50",
+                "bg-pink-50",
+              ];
+              const bgColor = bgColors[index % bgColors.length];
 
-                {/* Description */}
-                <Text className="text-gray-600 mb-4 leading-6">
-                  {event.description}
-                </Text>
-
-                {/* Booking Stats */}
-                <View className="flex-row items-center justify-between mb-4 pt-4 border-t border-gray-100">
-                  <Text className="text-gray-500 text-sm">
-                    {event.bookings} people booked this
-                  </Text>
-                  <View className="flex-row">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <Text key={star} className="text-yellow-400 text-lg">
-                        ★
-                      </Text>
-                    ))}
-                  </View>
-                </View>
-
-                {/* Select Button */}
+              return (
                 <TouchableOpacity
+                  key={event.id}
                   onPress={() => handleSelectEvent(event)}
-                  className="bg-blue-500 rounded-2xl py-4 items-center shadow-md"
+                  className={`rounded-xl p-4 mb-3 border border-gray-100 shadow-sm ${bgColor}`}
                 >
-                  <Text className="text-white font-semibold text-lg">
-                    Select
+                  <Text className="text-base font-semibold text-gray-800 mb-1">
+                    {event.name}
+                  </Text>
+                  <Text className="text-sm text-gray-600" numberOfLines={2}>
+                    {event.description}
                   </Text>
                 </TouchableOpacity>
-              </View>
-            ))
-          ) : (
-            <View className="bg-white rounded-3xl shadow-lg p-8 items-center">
-              <Text className="text-gray-500 text-lg mb-2">
-                No events available
-              </Text>
-              <Text className="text-gray-400 text-center">
-                This user hasn't created any bookable events yet
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* Testimonials */}
-        <View className="px-4 mb-6">
-          <View className="bg-white rounded-3xl shadow-lg p-6">
-            <Text className="text-xl font-bold text-gray-800 mb-4">
-              What people say
-            </Text>
-
-            {[
-              {
-                name: "Sarah M.",
-                text: "Great football session! John is very friendly and skilled.",
-                rating: 5,
-              },
-              {
-                name: "Mike R.",
-                text: "Excellent coding mentorship. Learned a lot in our session.",
-                rating: 5,
-              },
-              {
-                name: "Emma K.",
-                text: "Perfect coffee chat for networking. Highly recommend!",
-                rating: 4,
-              },
-            ].map((review, index) => (
-              <View
-                key={index}
-                className="py-4 border-b border-gray-100 last:border-b-0"
-              >
-                <View className="flex-row items-center justify-between mb-2">
-                  <Text className="text-gray-800 font-semibold">
-                    {review.name}
-                  </Text>
-                  <View className="flex-row">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <Text
-                        key={star}
-                        className={`text-lg ${star <= review.rating ? "text-yellow-400" : "text-gray-300"}`}
-                      >
-                        ★
-                      </Text>
-                    ))}
-                  </View>
-                </View>
-                <Text className="text-gray-600 text-sm leading-5">
-                  "{review.text}"
-                </Text>
-              </View>
-            ))}
+              );
+            })}
           </View>
-        </View>
-
-        {/* Bottom Spacing */}
-        <View className="h-20" />
+        )}
       </ScrollView>
     </SafeAreaView>
   );

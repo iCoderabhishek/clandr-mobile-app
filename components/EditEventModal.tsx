@@ -1,4 +1,5 @@
 import { useDeleteEvent, useUpdateEvent } from "@/lib/queries";
+import { router } from "expo-router";
 import { Trash2, X } from "lucide-react-native";
 import React, { useState } from "react";
 import {
@@ -11,23 +12,22 @@ import {
   View,
 } from "react-native";
 
-interface Event {
+export interface EditEvent {
   id: number;
-  title: string;
+  name: string;
   description: string;
-  duration: number;
-  active: boolean;
+  durationInMinutes: number;
+  isActive: boolean;
   bookings: number;
-  created: string;
+  createdAt: string;
   userId: string;
 }
 
 interface EditEventModalProps {
   visible: boolean;
-  event: Event | null;
+  event: EditEvent | null;
   onClose: () => void;
 }
-
 export default function EditEventModal({
   visible,
   event,
@@ -36,18 +36,19 @@ export default function EditEventModal({
   const updateEventMutation = useUpdateEvent();
   const deleteEventMutation = useDeleteEvent();
 
-  const [title, setTitle] = useState(event?.title || "");
-  const [description, setDescription] = useState(event?.description || "");
-  const [duration, setDuration] = useState(event?.duration?.toString() || "60");
-  const [active, setActive] = useState(event?.active || true);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [duration, setDuration] = useState("30");
+  const [active, setActive] = useState(true); // don't pass event?.isActive here, handle in useEffect
+
   const [isLoading, setIsLoading] = useState(false);
 
   React.useEffect(() => {
     if (event) {
-      setTitle(event.title);
-      setDescription(event.description);
-      setDuration(event.duration.toString());
-      setActive(event.active);
+      setTitle(event.name); // ✅ correct field
+      setDescription(event.description || "");
+      setDuration(event.durationInMinutes.toString()); // ✅ correct field
+      setActive(event.isActive); // ✅ correct field
     }
   }, [event]);
 
@@ -57,10 +58,10 @@ export default function EditEventModal({
     setIsLoading(true);
 
     const updatedEventData = {
-      title: title.trim(),
+      name: title.trim(),
       description: description.trim(),
-      duration: parseInt(duration) || 60,
-      active,
+      durationInMinutes: parseInt(duration) || 60,
+      isActive: active,
     };
 
     try {
@@ -92,6 +93,9 @@ export default function EditEventModal({
             try {
               await deleteEventMutation.mutateAsync(event.id);
               onClose();
+
+              // Navigate back to events list after deletion
+              router.push("/(tabs)");
             } catch (error) {
               Alert.alert("Error", "Failed to delete event. Please try again.");
             } finally {
@@ -199,7 +203,14 @@ export default function EditEventModal({
                 className={`w-14 h-8 rounded-full p-1 ${active ? "bg-blue-500" : "bg-gray-300"}`}
               >
                 <View
-                  className={`w-6 h-6 bg-white rounded-full shadow-sm transition-all ${active ? "ml-auto" : ""}`}
+                  className={`w-6 h-6 bg-white rounded-full ${active ? "ml-auto" : ""}`}
+                  style={{
+                    shadowColor: "#000",
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.2,
+                    shadowRadius: 2,
+                    elevation: 3,
+                  }}
                 />
               </TouchableOpacity>
             </View>
@@ -235,10 +246,10 @@ export default function EditEventModal({
             <TouchableOpacity
               onPress={handleSave}
               disabled={
-                isLoading || updateEventMutation.isPending || !title.trim()
+                isLoading || updateEventMutation.isPending || !title?.trim()
               }
               className={`bg-blue-500 rounded-2xl px-6 py-4 flex-1 items-center justify-center ${
-                isLoading || updateEventMutation.isPending || !title.trim()
+                isLoading || updateEventMutation.isPending || !title?.trim()
                   ? "opacity-50"
                   : ""
               }`}

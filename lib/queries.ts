@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiClient, Event, Meeting, Schedule } from './api';
+import { apiClient, Availability, Event, Meeting } from './api';
 
 // Query Keys
 export const queryKeys = {
@@ -78,7 +78,7 @@ export const useSaveSchedule = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: (schedule: Omit<Schedule, 'id' | 'userId'>) =>
+    mutationFn: (schedule: { timezone: string; availabilities: Omit<Availability, 'id' | 'scheduleId'>[] }) =>
       apiClient.saveSchedule(schedule),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.schedule });

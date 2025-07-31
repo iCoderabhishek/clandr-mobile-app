@@ -1,16 +1,12 @@
+import { CopyEventButton } from "@/components/CopyEventButton";
 import CreateEventModal from "@/components/CreateEventModal";
-import EditEventModal from "@/components/EditEventModal";
+import { CustomUserButton } from "@/components/CustomUserButton";
+import EditEventModal, { EditEvent } from "@/components/EditEventModal";
 import { useApiClient } from "@/lib/api";
 import { useDeleteEvent, useEvents, useUpdateEvent } from "@/lib/queries";
 import { useAuth } from "@clerk/clerk-expo";
-import {
-  ChevronDown,
-  Menu,
-  MoveHorizontal as MoreHorizontal,
-  Plus,
-  Search,
-  User,
-} from "lucide-react-native";
+
+import { CalendarDays, Clock, Pencil, Plus, Search } from "lucide-react-native";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
@@ -22,19 +18,8 @@ import {
   View,
 } from "react-native";
 
-interface Event {
-  id: number;
-  title: string;
-  description: string;
-  duration: number;
-  active: boolean;
-  bookings: number;
-  created: string;
-  userId: string;
-}
-
 export default function MyEventsScreen() {
-  const { isSignedIn } = useAuth();
+  const { isSignedIn, userId } = useAuth();
 
   useApiClient(); // Initialize API client with auth
 
@@ -42,7 +27,7 @@ export default function MyEventsScreen() {
   const updateEventMutation = useUpdateEvent();
   const deleteEventMutation = useDeleteEvent();
 
-  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<EditEvent | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -89,11 +74,11 @@ export default function MyEventsScreen() {
   // Filter events based on search and filter
   const filteredEvents = events.filter((event) => {
     const matchesSearch =
-      event.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      event.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       event.description?.toLowerCase().includes(searchQuery.toLowerCase());
 
-    if (selectedFilter === "active") return event.active && matchesSearch;
-    if (selectedFilter === "inactive") return !event.active && matchesSearch;
+    if (selectedFilter === "active") return event.isActive && matchesSearch;
+    if (selectedFilter === "inactive") return !event.isActive && matchesSearch;
     return matchesSearch;
   });
 
@@ -112,7 +97,7 @@ export default function MyEventsScreen() {
     return today.toLocaleDateString("en-US", { month: "long" });
   };
 
-  const handleEditEvent = (event: Event) => {
+  const handleEditEvent = (event: EditEvent) => {
     setSelectedEvent(event);
     setModalVisible(true);
   };
@@ -135,63 +120,72 @@ export default function MyEventsScreen() {
       .toUpperCase();
   };
 
-  const EventCard = ({ event, index }: { event: Event; index: number }) => (
-    <TouchableOpacity
-      onPress={() => handleEditEvent(event)}
-      className={`${getEventColor(index)} rounded-3xl p-6 mb-4 shadow-lg`}
-    >
-      <View className="flex-row items-start justify-between mb-4">
-        <View className="flex-1">
-          <Text className="text-white text-xl font-bold mb-2">
-            {event.title}
-          </Text>
-          <Text className="text-white/80 text-sm">
-            {new Date().toLocaleTimeString("en-US", {
-              hour: "2-digit",
-              minute: "2-digit",
-              hour12: true,
-            })}{" "}
-            -{" "}
-            {new Date(Date.now() + event.duration * 60000).toLocaleTimeString(
-              "en-US",
-              {
-                hour: "2-digit",
-                minute: "2-digit",
-                hour12: true,
-              }
-            )}
-          </Text>
-        </View>
-        <View className="flex-row items-center">
-          <TouchableOpacity className="w-8 h-8 rounded-full bg-white/20 items-center justify-center mr-2">
-            <MoreHorizontal size={16} color="white" />
-          </TouchableOpacity>
-        </View>
-      </View>
+  const EventCard = ({ event, index }: { event: EditEvent; index: number }) => {
+    const isActive = event?.isActive;
+    const createdAt = new Date(event.createdAt);
 
-      {/* Participant Avatars */}
-      <View className="flex-row items-center">
-        {["John", "Sarah", "Mike"].slice(0, 3).map((participant, idx) => (
-          <View
-            key={idx}
-            className="w-8 h-8 rounded-full bg-white items-center justify-center mr-2 shadow-sm"
-            style={{ marginLeft: idx > 0 ? -8 : 0 }}
-          >
-            <Text className="text-gray-700 text-xs font-bold">
-              {getParticipantInitials(participant)}
+    return (
+      <TouchableOpacity
+        onPress={() => handleEditEvent(event)}
+        className={`${getEventColor(index)} rounded-3xl p-6 mb-4 shadow-lg`}
+      >
+        <View className="flex-row items-start justify-between mb-4">
+          {/* Left Section */}
+          <View className="flex-1">
+            <Text className="text-white text-2xl font-bold mb-2">
+              {event.name}
             </Text>
-          </View>
-        ))}
-        {event.bookings > 3 && (
-          <View className="w-8 h-8 rounded-full bg-white/20 items-center justify-center ml-2">
-            <Text className="text-white text-xs font-bold">
-              +{event.bookings - 3}
+            <Text className="text-white/80 text-md mb-1">
+              From {event.durationInMinutes} minutes
             </Text>
+            <View className="flex-row items-center gap-2 mt-2">
+              <CalendarDays size={16} color="white" />
+              <Text className="text-white/80 text-sm">
+                {createdAt.toLocaleDateString()}
+              </Text>
+
+              <Clock size={16} color="white" className="ml-4" />
+              <Text className="text-white/80 text-sm">
+                {createdAt.toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </Text>
+            </View>
           </View>
-        )}
-      </View>
-    </TouchableOpacity>
-  );
+
+          {/* Right section */}
+          <View className="flex-row items-center">
+            <View
+              className={`px-2 py-1 rounded-full mr-2 ${
+                isActive ? "bg-green-500/20" : "bg-red-500/20"
+              }`}
+            >
+              <Text className="text-white text-md font-medium">
+                {isActive ? "Active" : "Inactive"}
+              </Text>
+            </View>
+            <TouchableOpacity className="w-8 h-8 rounded-full bg-white/20 items-center justify-center mr-2">
+              <Pencil size={16} color="white" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Description */}
+        <Text className="text-white/90 text-xl mb-4 leading-5">
+          {event.description}
+        </Text>
+
+        <View className="flex-row items-center max-w-sm">
+          <CopyEventButton
+            eventId={event.id.toString()}
+            clerkUserId={userId ?? ""}
+            style="mr-2"
+          />
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
@@ -200,18 +194,14 @@ export default function MyEventsScreen() {
         <View className="px-4 pt-4 pb-6">
           <View className="flex-row items-center justify-between mb-6">
             <View className="flex-row items-center">
-              <TouchableOpacity className="w-10 h-10 rounded-full bg-white shadow-md items-center justify-center mr-4">
-                <Menu size={20} color="#374151" />
-              </TouchableOpacity>
               <View className="flex-row items-center">
-                <Text className="text-xl font-bold text-gray-800 mr-2">
+                <Text className="text-2xl font-bold text-gray-800 mr-2">
                   {getCurrentMonth()}
                 </Text>
-                <ChevronDown size={20} color="#6B7280" />
               </View>
             </View>
             <View className="w-12 h-12 rounded-full bg-blue-500 items-center justify-center shadow-lg">
-              <User size={24} color="white" />
+              <CustomUserButton />
             </View>
           </View>
 
@@ -222,18 +212,18 @@ export default function MyEventsScreen() {
           <Text className="text-3xl font-bold text-gray-800 mb-4">
             My Events
           </Text>
-          <Text className="text-gray-600 mb-6">
+          <Text className="text-gray-600 mb-6 text-lg">
             Manage your bookable events and availability
           </Text>
 
           {/* Search Bar */}
-          <View className="bg-white rounded-2xl shadow-md p-4 mb-6 flex-row items-center">
+          <View className="bg-white rounded-2xl shadow-lg p-2 mb-6 flex-row items-center">
             <Search size={20} color="#9CA3AF" />
             <TextInput
               value={searchQuery}
               onChangeText={setSearchQuery}
               placeholder="Search event, meeting, etc..."
-              className="flex-1 ml-3 text-gray-700 text-base"
+              className="flex-1 ml-3 text-gray-700 text-lg"
               placeholderTextColor="#9CA3AF"
             />
           </View>
@@ -245,17 +235,17 @@ export default function MyEventsScreen() {
               {
                 label: "Active",
                 value: "active",
-                count: events.filter((e) => e.active).length,
+                count: events.filter((e) => e.isActive).length,
               },
               {
                 label: "Inactive",
                 value: "inactive",
-                count: events.filter((e) => !e.active).length,
+                count: events.filter((e) => !e.isActive).length,
               },
             ].map((filter, index) => (
               <TouchableOpacity
                 key={index}
-                onPress={() => setSelectedFilter(filter.value)}
+                onPress={() => {}}
                 className={`mr-4 px-4 py-2 rounded-full ${
                   selectedFilter === filter.value
                     ? "bg-gray-800"
@@ -280,7 +270,20 @@ export default function MyEventsScreen() {
         <View className="px-4">
           {filteredEvents.length > 0 ? (
             filteredEvents.map((event, index) => (
-              <EventCard key={event.id} event={event} index={index} />
+              <EventCard
+                key={event.id}
+                event={{
+                  id: event.id,
+                  name: event.name,
+                  description: event.description,
+                  durationInMinutes: event.durationInMinutes, // adjust field name
+                  isActive: event.isActive, // adjust if needed
+                  bookings: event.bookings,
+                  createdAt: event.createdAt, // or `created` if already matches
+                  userId: event.userId,
+                }}
+                index={index}
+              />
             ))
           ) : (
             <View className="bg-white rounded-3xl p-8 items-center shadow-lg">
